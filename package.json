@@ -1,0 +1,17 @@
+{
+  "name": "greenledger-prototype",
+  "version": "1.0.0",
+  "description": "Educational smart contract prototype for GreenLedger (Introduction to Finance, AITU)",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "demo": "hardhat run scripts/demo.js"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "hardhat": "^2.22.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.0.2"
+  }
+}
