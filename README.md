@@ -7,7 +7,7 @@ Educational project for the course Introduction to Finance. Not a real product, 
 **Team Members:** Temur Dias, Khalilov Mardan, Ernur Zhasyuzak  
 
 ## Demo Video
-[Вставьте сюда ссылку на Google Drive с видео]
+https://drive.google.com/file/d/16keM7cHM9CunpityfIyiJxmGobvB43ev/view?usp=sharing
 
 ## How to Run Locally
 1. `npm install`
