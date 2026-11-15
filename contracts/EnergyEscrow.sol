@@ -94,6 +94,7 @@ contract EnergyEscrow is AccessControl, ReentrancyGuard, Pausable {
         Trade storage trade = trades[tradeId];
         require(trade.status == TradeStatus.Funded, "Trade not active");
         require(verifiedKwh > 0 && verifiedKwh <= trade.maxKwh, "Invalid verified kWh");
+        require(block.timestamp < trade.createdAt + SETTLEMENT_WINDOW, "Settlement window expired");
         require(meterHash != bytes32(0), "Telemetry hash required");
 
         trade.deliveredKwh = verifiedKwh;
@@ -151,6 +152,7 @@ contract EnergyEscrow is AccessControl, ReentrancyGuard, Pausable {
             msg.sender == trade.buyer || msg.sender == trade.generator,
             "Only trade counterparties can raise dispute"
         );
+        require(block.timestamp < trade.createdAt + SETTLEMENT_WINDOW, "Settlement window expired");
         trade.status = TradeStatus.Disputed;
         emit TradeDisputed(tradeId, msg.sender);
     }

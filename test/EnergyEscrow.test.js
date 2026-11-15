@@ -114,6 +114,62 @@ describe("EnergyEscrow Prototype Unit Tests", function () {
     ).to.be.revertedWith("Trade not active");
   });
 
+  describe("Settlement deadline", function () {
+    async function fundTrade() {
+      const fixture = await deployFixture();
+      const { escrow, buyer, generator } = fixture;
+      const deposit = ethers.parseEther("1");
+      await escrow.connect(buyer).depositCollateral(generator.address, deposit, 1n, {
+        value: deposit,
+      });
+      const trade = await escrow.trades(0);
+      const deadline = trade.createdAt + await escrow.SETTLEMENT_WINDOW();
+      const meterHash = ethers.id("deadline-telemetry");
+      return { ...fixture, deposit, deadline, meterHash };
+    }
+
+    it("allows settlement one second before the deadline", async function () {
+      const { escrow, oracle, deadline, meterHash } = await fundTrade();
+      await time.setNextBlockTimestamp(deadline - 1n);
+      await expect(escrow.connect(oracle).executeSettlement(0, 1n, meterHash))
+        .to.emit(escrow, "TradeSettled");
+      expect((await escrow.trades(0)).status).to.equal(1n);
+    });
+
+    it("allows a dispute one second before the deadline", async function () {
+      const { escrow, generator, deadline } = await fundTrade();
+      await time.setNextBlockTimestamp(deadline - 1n);
+      await expect(escrow.connect(generator).raiseDispute(0))
+        .to.emit(escrow, "TradeDisputed");
+      expect((await escrow.trades(0)).status).to.equal(3n);
+    });
+
+    it("allows a full refund at the exact deadline", async function () {
+      const { escrow, buyer, deposit, deadline } = await fundTrade();
+      await time.setNextBlockTimestamp(deadline);
+      await expect(escrow.connect(buyer).refundExpired(0))
+        .to.changeEtherBalances([buyer, escrow], [deposit, -deposit]);
+      expect((await escrow.trades(0)).status).to.equal(2n);
+    });
+
+    for (const offset of [0n, 1n]) {
+      for (const action of ["settlement", "buyer dispute", "generator dispute"]) {
+        it(`rejects ${action} at deadline + ${offset}s and preserves the refund`, async function () {
+          const { escrow, oracle, buyer, generator, deposit, deadline, meterHash } = await fundTrade();
+          await time.setNextBlockTimestamp(deadline + offset);
+          const transaction = action === "settlement"
+            ? escrow.connect(oracle).executeSettlement(0, 1n, meterHash)
+            : escrow.connect(action === "buyer dispute" ? buyer : generator).raiseDispute(0);
+          await expect(transaction).to.be.revertedWith("Settlement window expired");
+          expect((await escrow.trades(0)).status).to.equal(0n);
+          expect(await escrow.accumulatedProtocolFees()).to.equal(0n);
+          await expect(escrow.connect(buyer).refundExpired(0))
+            .to.changeEtherBalances([buyer, escrow], [deposit, -deposit]);
+        });
+      }
+    }
+  });
+
   it("Test 6: Should allow admin to pause contract in emergency and block new deposits", async function () {
     const { escrow, admin, buyer, generator } = await deployFixture();
     await escrow.connect(admin).pause();
